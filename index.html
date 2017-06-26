@@ -1,0 +1,102 @@
+<html>
+	<head>
+		<title>websocket chat demo</title>
+		<style type="text/css">
+		#input {
+			width: 200px;
+		}
+		#message {
+			position: fixed;
+			top: 40px;
+			bottom: 8px;
+			left: 8px;
+			right: 8px;
+			border: 1px solid:#EEEEEE;
+			padding: 8px;
+		}
+		</style>
+	</head>
+	<body>
+		Your message:
+		<input type="text" id="input">
+		<div id="messages"></div>
+		<script src="/socket.io/socket.io.js"></script>
+		<script>
+			var messageElement = document.getElementById('messages');
+			var lastMessageElement = null;
+			
+			function addMessage(message){
+				var newMessageElement = document.createElement('div');
+				var newMessageText = document.createTextNode(message);
+				newMessageElement.appendChild(newMessageText);
+				messageElement.insertBefore(newMessageElement, lastMessageElement);
+			}
+			var socket = io.connect("http://localhost:4000/loc-chat");
+			socket.on('message', function(content){
+				addMessage(content);
+			});
+			
+			socket.on('login', function(){
+				var jid = prompt('what username would u like to use?');
+				if(!jid || jid == '')
+					socket.close();
+				else{
+					socket.jid = jid;
+					socket.devtype = 'ios';
+					socket.logintime = Date.now().toString();
+					socket.token = socket.logintime + jid
+					socket.emit('login', socket.jid, socket.token, socket.devtype, socket.logintime);
+				}
+			});
+
+			socket.on('logined', function(timebegin){
+				addMessage('begin' + timebegin);
+				if(timebegin != '0' && timebegin != '')
+					socket.emit('loadoffmsg', 'all', '', timebegin, socket.logintime);
+			});
+			
+			socket.on('offconflicmsg', function(msg){
+				socket.emit('loginsuc', 'f869008650401c4ed64c7c7512bd44b4f28a116cb39af66035848698aebc178b');
+			});
+			socket.on('loadoffmsg', function(msgtype, roomid, begin, end, msgs){
+				addMessage(msgtype + ': ' + msgs + '-'+roomid+'-'+begin+'-'+end);
+				addMessage('finished');
+			});
+			
+			socket.on('conflic', function(devtype, token){
+				addMessage(socket.devtype + ':' + socket.token);
+				addMessage(devtype + ':' + token);
+				if(devtype == socket.devtype && token != socket.token)
+					socket.close();
+			});
+
+			socket.on('sys', function(content){
+				addMessage(content);
+			});
+
+			socket.on('sync', function(content){
+				addMessage(content);
+			});
+			socket.on('msgsuc', function(content){
+				socket.emit('msgsucack', content);
+				content = 'sendsuc:' + content; 
+				addMessage(content);
+				//socket.emit('unregister', 'f869008650401c4ed64c7c7512bd44b4f28a116cb39af66035848698aebc178b')
+				socket.emit('dismissroom', '698aebc178b')
+			});
+
+			var inputElement = document.getElementById('input');
+			inputElement.onkeydown = function(keyboardEvent){
+				if(keyboardEvent.keyCode == 13){
+					var msgid = Date.now().toString();
+					//socket.emit('message', 'mroomid', msgid, inputElement.value);
+					socket.emit('message', 'sys', msgid, inputElement.value);
+					inputElement.value = "";
+					return false;
+				}
+				else
+					return true;
+			}
+		</script>
+	</body>
+</html>
